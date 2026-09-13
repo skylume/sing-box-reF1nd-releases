@@ -20,6 +20,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   prepare-go-win7:
     name: Prepare Go toolchain
@@ -34,7 +37,7 @@ jobs:
           fi
 
       - name: Checkout sing-box source (for setup script)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: reF1nd/sing-box
           ref: ${{ inputs.source_ref }}
@@ -42,7 +45,7 @@ jobs:
 
       - name: Cache Win7 Go toolchain
         id: cache-go-win7
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/go/go_win7
           key: go_win7_1267_v1
@@ -70,7 +73,7 @@ jobs:
           ls -lh staging/go_win7.tar.gz
 
       - name: Upload toolchain
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: go-win7-toolchain
           path: staging/go_win7.tar.gz
@@ -88,14 +91,14 @@ jobs:
           - { goarch: "386", label: windows-7-386 }
     steps:
       - name: Checkout sing-box source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: reF1nd/sing-box
           ref: ${{ inputs.source_ref }}
           fetch-depth: 1
 
       - name: Download toolchain
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: go-win7-toolchain
 
@@ -137,18 +140,11 @@ jobs:
           ls -la dist/
           file dist/sing-box.exe || true
 
-      - name: Package
-        run: |
-          set -euo pipefail
-          cd dist
-          zip "sing-box-${{ inputs.version }}-${{ matrix.label }}.zip" sing-box.exe
-          ls -la
-
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: sing-box-${{ matrix.label }}
-          path: dist/sing-box-*.zip
+          path: dist/sing-box.exe
           retention-days: 7
 
   release:
@@ -157,14 +153,25 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ inputs.create_release }}
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
+      - name: Download sing-box artifacts
+        uses: actions/download-artifact@v5
         with:
           path: dist
-          merge-multiple: true
+          pattern: sing-box-*
 
-      - name: List files
-        run: ls -la dist/
+      - name: Package zips
+        run: |
+          set -euo pipefail
+          cd dist
+          for d in sing-box-windows-7-*/; do
+            [ -d "$d" ] || continue
+            label="${d#sing-box-}"
+            label="${label%/}"
+            cp "${d}sing-box.exe" sing-box.exe
+            zip "sing-box-${{ inputs.version }}-${label}.zip" sing-box.exe
+            rm -f sing-box.exe
+          done
+          ls -la
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -172,9 +179,11 @@ jobs:
           tag_name: v${{ inputs.version }}-win7
           name: "sing-box ${{ inputs.version }} (Windows 7)"
           body: |
-            面向 Windows 7 的 sing-box 构建（amd64 / 386）。
+            面向 Windows 7 的 sing-box 构建。
 
             - 源码：reF1nd/sing-box @ ${{ inputs.source_ref }}
             - Go 工具链：打过 Win7 兼容补丁的 Go 1.26.7
+            - 支持架构：amd64（64位）、386（32位）
+            - 本构建不包含 naive 出站支持，因此无需 libcronet.dll
           files: dist/*.zip
           fail_on_unmatched_files: true
