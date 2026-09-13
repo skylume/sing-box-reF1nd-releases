@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "版本号（写入 binary 和 Release tag，例如 1.13.20）"
+        description: "版本号（写入 binary 和 Release tag，例如 1.14.0-reF1nd.1）"
         required: true
         type: string
       source_ref:
-        description: "sing-box 源码 ref（分支 / tag / commit）"
+        description: "sing-box 源码的 git tag（例如 v1.14.0-reF1nd.1）"
         required: true
         default: "testing"
         type: string
