@@ -4,13 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "版本号（写入 binary 和 Release tag，例如 1.14.0-reF1nd.1）"
+        description: "版本号（去掉开头 v，例如 1.14.0-reF1nd.1）"
         required: true
         type: string
       source_ref:
-        description: "sing-box 源码的 git tag（例如 v1.14.0-reF1nd.1）"
+        description: "源码 tag 名（去 https://github.com/reF1nd/sing-box/tags 查，例如 v1.14.0-reF1nd.1）"
         required: true
-        default: "testing"
         type: string
       create_release:
         description: "构建完成后自动发布 GitHub Release"
@@ -26,6 +25,14 @@ jobs:
     name: Prepare Go toolchain
     runs-on: ubuntu-latest
     steps:
+      - name: Validate source_ref
+        run: |
+          set -euo pipefail
+          if [ -z "${{ inputs.source_ref }}" ]; then
+            echo "::error::source_ref 不能为空。请去 https://github.com/reF1nd/sing-box/tags 查最新 tag 后填入。"
+            exit 1
+          fi
+
       - name: Checkout sing-box source (for setup script)
         uses: actions/checkout@v4
         with:
